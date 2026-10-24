@@ -213,8 +213,10 @@ async function enc(c,f,q){
  if(f=='svg'){const b=await toB(c,'image/png'),u=await new Promise(r=>{const R=new FileReader();R.onload=()=>r(R.result);R.readAsDataURL(b)});
   return new Blob([`<svg xmlns="http://www.w3.org/2000/svg" width="${c.width}" height="${c.height}" viewBox="0 0 ${c.width} ${c.height}"><image width="${c.width}" height="${c.height}" href="${u}"/></svg>`],{type:'image/svg+xml'})}
  return toB(c,{jpg:'image/jpeg',png:'image/png',webp:'image/webp'}[f],q)}
-const WK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const getPdf=ab=>{if(!window.pdfjsLib)throw Error(LIBERR);if(!getPdf.w){try{getPdf.w=URL.createObjectURL(new Blob(["importScripts('"+WK+"');"],{type:'text/javascript'}))}catch(e){getPdf.w=WK}}pdfjsLib.GlobalWorkerOptions.workerSrc=getPdf.w;return pdfjsLib.getDocument({data:new Uint8Array(ab.slice(0))}).promise};
+const WKS=['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js','https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'];
+async function getPdf(ab){if(!window.pdfjsLib)throw Error(LIBERR);let err;const T=[];if(getPdf.ok)T.push(getPdf.ok);T.push(['blob',WKS[0]],['direct',WKS[0]],['blob',WKS[1]],['direct',WKS[1]]);
+ for(const m of T){try{pdfjsLib.GlobalWorkerOptions.workerSrc=m[0]=='blob'?URL.createObjectURL(new Blob(["importScripts('"+m[1]+"');"],{type:'text/javascript'})):m[1];const task=pdfjsLib.getDocument({data:new Uint8Array(ab.slice(0)),verbosity:0});const doc=await Promise.race([task.promise,new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),12000))]);getPdf.ok=m;return doc}catch(e){err=e;const n=e&&e.name;if(n=='PasswordException')throw Error('This PDF is password protected. Remove the password and try again.');if(n=='InvalidPDFException'||n=='MissingPDFException')throw Error('This file is not a valid PDF.')}}
+ throw err||Error(LIBERR)}
 async function page(p,i,s){const g=await p.getPage(i),v=g.getViewport({scale:s}),c=cv(v.width|0,v.height|0),x=ctx(c);x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await g.render({canvasContext:x,viewport:v}).promise;return c}
 function sharpen(c,a){if(c.width*c.height>4e7||a<=0)return;const x=ctx(c),W=c.width,H=c.height,I=x.getImageData(0,0,W,H),s=I.data,o=new Uint8ClampedArray(s);
  for(let y=1;y<H-1;y++)for(let X=1;X<W-1;X++){const i=(y*W+X)*4;for(let k=0;k<3;k++){const j=i+k;o[j]=s[j]*(1+4*a)-a*(s[j-4]+s[j+4]+s[j-W*4]+s[j+W*4])}}
